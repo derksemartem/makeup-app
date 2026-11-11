@@ -17,7 +17,7 @@ const LESSONS = [
 ];
 
 // --- простая «база» в json-файле ---
-const DATA_FILE = path.join(__dirname, 'data.json');
+const DATA_FILE = process.env.DATA_FILE || path.join(__dirname, 'data.json');
 let db = { users: {} }; // users["12345"] = [1, 3]
 try { db = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')); } catch {}
 const save = () => fs.writeFileSync(DATA_FILE, JSON.stringify(db, null, 2));
