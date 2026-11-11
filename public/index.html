@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Makeup Lessons</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root { --bg:#fff; --card:#f6f6f6; --text:#111; --accent:#e05a8f; }
+  body.dark { --bg:#17212b; --card:#232e3c; --text:#fff; }
+
+  * { margin:0; padding:0; box-sizing:border-box; font-family:-apple-system,sans-serif; }
+  body { background:var(--bg); color:var(--text); padding:12px; padding-bottom:80px; }
+  header h1 { font-size:22px; margin:8px 0 2px; }
+  header p { font-size:13px; opacity:.6; margin-bottom:14px; }
+
+  .card { background:var(--card); border-radius:14px; padding:14px; margin-bottom:12px; }
+  .card h3 { font-size:16px; margin-bottom:4px; }
+  .card .desc { font-size:13px; opacity:.7; margin-bottom:8px; }
+  .card .row { display:flex; justify-content:space-between; align-items:center; }
+  .price { font-weight:700; color:var(--accent); }
+  button { border:none; border-radius:10px; padding:9px 16px; font-size:14px;
+           background:var(--accent); color:#fff; cursor:pointer; }
+  button:disabled { opacity:.5; }
+  .secondary { background:var(--card); color:var(--text); }
+  .owned .badge { display:inline-block; background:var(--accent); color:#fff; font-size:11px;
+                  padding:3px 8px; border-radius:6px; margin-top:8px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Видеоуроки по макияжу</h1>
+  <p id="greeting">Загрузка…</p>
+</header>
+<div id="catalog"></div>
+
+<script>
+const tg = window.Telegram.WebApp;
+tg.ready(); tg.expand();
+if (tg.colorScheme === 'dark') document.body.classList.add('dark');
+
+const HEADERS = { 'Authorization': tg.initData, 'Content-Type': 'application/json' };
+let state = { name: '', owned: [], lessons: [] };
+
+async function api(path, options = {}) {
+  const res = await fetch(path, { headers: HEADERS, ...options });
+  return res.json();
+}
+
+async function refresh() {
+  state = await api('/api/me');
+  document.getElementById('greeting').textContent = `Привет, ${state.name}!`;
+  render();
+}
+
+function render() {
+  const box = document.getElementById('catalog');
+  box.innerHTML = '';
+  state.lessons.forEach(l => {
+    const isOwned = state.owned.includes(l.id);
+    const el = document.createElement('div');
+    el.className = 'card' + (isOwned ? ' owned' : '');
+    el.innerHTML = `
+      <h3>${l.title}</h3>
+      <div class="desc">${l.desc}</div>
+      <div class="row">
+        <span class="price">${l.price} ⭐</span>
+        <button ${isOwned ? 'onclick="download(' + l.id + ')"' : 'onclick="pay(' + l.id + ', this)"'}>
+          ${isOwned ? 'Смотреть' : 'Купить'}
+        </button>
+      </div>
+      ${isOwned ? '<span class="badge">✓ Куплено</span>' : ''}`;
+    box.appendChild(el);
+  });
+}
+
+async function pay(id, btn) {
+  btn.disabled = true;
+  try {
+    const { link } = await api('/api/invoice', {
+      method: 'POST', body: JSON.stringify({ lessonId: id })
+    });
+    tg.openInvoice(link);
+  } catch {
+    tg.showAlert('Не удалось создать счёт, попробуйте позже');
+    btn.disabled = false;
+  }
+}
+
+// после закрытия окна оплаты ждём подтверждение от сервера
+tg.onEvent('invoiceClosed', async (e) => {
+  if (e.status !== 'paid') return;
+  for (let i = 0; i < 15; i++) {
+    await new Promise(r => setTimeout(r, 2000));
+    await refresh();
+    if (state.owned.length) return;
+  }
+});
+
+async function download(id) {
+  tg.HapticFeedback?.impactOccurred('light');
+  const { url } = await api('/api/download-url/' + id);
+  window.open(url, '_blank');
+}
+
+refresh();
+</script>
+</body>
+</html>
