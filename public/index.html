@@ -1,109 +1,237 @@
+
+Отправлено с iPhone
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Makeup Lessons</title>
-<script src="https://telegram.org/js/telegram-web-app.js"></script>
-<style>
-  :root { --bg:#fff; --card:#f6f6f6; --text:#111; --accent:#e05a8f; }
-  body.dark { --bg:#17212b; --card:#232e3c; --text:#fff; }
-
-  * { margin:0; padding:0; box-sizing:border-box; font-family:-apple-system,sans-serif; }
-  body { background:var(--bg); color:var(--text); padding:12px; padding-bottom:80px; }
-  header h1 { font-size:22px; margin:8px 0 2px; }
-  header p { font-size:13px; opacity:.6; margin-bottom:14px; }
-
-  .card { background:var(--card); border-radius:14px; padding:14px; margin-bottom:12px; }
-  .card h3 { font-size:16px; margin-bottom:4px; }
-  .card .desc { font-size:13px; opacity:.7; margin-bottom:8px; }
-  .card .row { display:flex; justify-content:space-between; align-items:center; }
-  .price { font-weight:700; color:var(--accent); }
-  button { border:none; border-radius:10px; padding:9px 16px; font-size:14px;
-           background:var(--accent); color:#fff; cursor:pointer; }
-  button:disabled { opacity:.5; }
-  .secondary { background:var(--card); color:var(--text); }
-  .owned .badge { display:inline-block; background:var(--accent); color:#fff; font-size:11px;
-                  padding:3px 8px; border-radius:6px; margin-top:8px; }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Видеоуроки по макияжу</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--tg-theme-bg-color, #ffffff);
+            color: var(--tg-theme-text-color, #000000);
+            margin: 0;
+            padding: 16px;
+            padding-bottom: 80px;
+        }
+        h2, h3 {
+            text-align: center;
+        }
+        .tab-bar {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 20px;
+            background: var(--tg-theme-secondary-bg-color, #f1f1f1);
+            border-radius: 12px;
+            padding: 4px;
+        }
+        .tab {
+            flex: 1;
+            text-align: center;
+            padding: 10px;
+            cursor: pointer;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        .tab.active {
+            background-color: var(--tg-theme-button-color, #2481cc);
+            color: var(--tg-theme-button-text-color, #ffffff);
+        }
+        .lesson-card {
+            background: var(--tg-theme-secondary-bg-color, #f1f1f1);
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 15px;
+        }
+        .lesson-card h4 {
+            margin: 0 0 8px 0;
+        }
+        .lesson-card p {
+            margin: 0 0 12px 0;
+            font-size: 14px;
+            opacity: 0.8;
+        }
+        .video-container {
+            position: relative;
+            width: 100%;
+            padding-bottom: 56.25%; /* 16:9 */
+            height: 0;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #000;
+        }
+        .video-container iframe, .video-container video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+        /* Админ-панель */
+        .form-group {
+            margin-bottom: 12px;
+        }
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            margin-bottom: 4px;
+            opacity: 0.7;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            box-sizing: border-box;
+            background: var(--tg-theme-bg-color, #ffffff);
+            color: var(--tg-theme-text-color, #000000);
+        }
+        .btn {
+            background-color: var(--tg-theme-button-color, #2481cc);
+            color: var(--tg-theme-button-text-color, #ffffff);
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            width: 100%;
+            margin-top: 10px;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
 </head>
 <body>
-<header>
-  <h1>Видеоуроки по макияжу</h1>
-  <p id="greeting">Загрузка…</p>
-</header>
-<div id="catalog"></div>
 
-<script>
-const tg = window.Telegram.WebApp;
-tg.ready(); tg.expand();
-if (tg.colorScheme === 'dark') document.body.classList.add('dark');
+    <div class="tab-bar">
+        <div class="tab active" onclick="switchTab('lessons')">📚 Уроки</div>
+        <div id="adminTabBtn" class="tab hidden" onclick="switchTab('admin')">⚙️ Админка</div>
+    </div>
 
-const HEADERS = { 'Authorization': tg.initData, 'Content-Type': 'application/json' };
-let state = { name: '', owned: [], lessons: [] };
+    <!-- Вкладка с уроками -->
+    <div id="lessonsTab">
+        <h2>💄 Видеоуроки по макияжу</h2>
+        <div id="lessonsList">
+            <!-- Сюда динамически подгружаются уроки -->
+        </div>
+    </div>
 
-async function api(path, options = {}) {
-  const res = await fetch(path, { headers: HEADERS, ...options });
-  return res.json();
-}
+    <!-- Вкладка админа для загрузки уроков -->
+    <div id="adminTab" class="hidden">
+        <h3>Добавить новый урок</h3>
+        <div class="form-group">
+            <label>Название урока:</label>
+            <input type="text" id="lessonTitle" placeholder="Например: Идеальные стрелки">
+        </div>
+        <div class="form-group">
+            <label>Описание:</label>
+            <textarea id="lessonDesc" rows="3" placeholder="Краткое описание того, чему научится ученик"></textarea>
+        </div>
+        <div class="form-group">
+            <label>Ссылка на видео (YouTube / Embed / MP4):</label>
+            <input type="text" id="lessonUrl" placeholder="https://www.youtube.com/embed/...">
+        </div>
+        <button class="btn" onclick="addNewLesson()">Опубликовать урок</button>
+    </div>
 
-async function refresh() {
-  state = await api('/api/me');
-  document.getElementById('greeting').textContent = `Привет, ${state.name}!`;
-  render();
-}
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand();
 
-function render() {
-  const box = document.getElementById('catalog');
-  box.innerHTML = '';
-  state.lessons.forEach(l => {
-    const isOwned = state.owned.includes(l.id);
-    const el = document.createElement('div');
-    el.className = 'card' + (isOwned ? ' owned' : '');
-    el.innerHTML = `
-      <h3>${l.title}</h3>
-      <div class="desc">${l.desc}</div>
-      <div class="row">
-        <span class="price">${l.price} ⭐</span>
-        <button ${isOwned ? 'onclick="download(' + l.id + ')"' : 'onclick="pay(' + l.id + ', this)"'}>
-          ${isOwned ? 'Смотреть' : 'Купить'}
-        </button>
-      </div>
-      ${isOwned ? '<span class="badge">✓ Куплено</span>' : ''}`;
-    box.appendChild(el);
-  });
-}
+        // ЗАМЕНИТЕ ЭТОТ ID НА ВАШ TELEGRAM ID (чтобы админка была доступна только вам)
+        const ADMIN_ID = 123456789;
 
-async function pay(id, btn) {
-  btn.disabled = true;
-  try {
-    const { link } = await api('/api/invoice', {
-      method: 'POST', body: JSON.stringify({ lessonId: id })
-    });
-    tg.openInvoice(link);
-  } catch {
-    tg.showAlert('Не удалось создать счёт, попробуйте позже');
-    btn.disabled = false;
-  }
-}
+        // Проверяем, админ ли пользователь
+        if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
+            if (tg.initDataUnsafe.user.id === ADMIN_ID) {
+                document.getElementById('adminTabBtn').classList.remove('hidden');
+            }
+        }
 
-// после закрытия окна оплаты ждём подтверждение от сервера
-tg.onEvent('invoiceClosed', async (e) => {
-  if (e.status !== 'paid') return;
-  for (let i = 0; i < 15; i++) {
-    await new Promise(r => setTimeout(r, 2000));
-    await refresh();
-    if (state.owned.length) return;
-  }
-});
+        // Базовые уроки по умолчанию
+        let lessons = JSON.parse(localStorage.getItem('makeup_lessons')) || [
+            {
+                title: "Базовый тон и подготовка кожи",
+                desc: "Учимся подготавливать лицо, наносить базу и ровный тон без эффекта маски.",
+                url: "https://www.youtube.com/embed/dQw4w9WgXcQ" // Пример ссылки
+            },
+            {
+                title: "Дневной макияж за 10 минут",
+                desc: "Быстрый и свежий образ на каждый день.",
+                url: "https://www.youtube.com/embed/dQw4w9WgXcQ"
+            }
+        ];
 
-async function download(id) {
-  tg.HapticFeedback?.impactOccurred('light');
-  const { url } = await api('/api/download-url/' + id);
-  window.open(url, '_blank');
-}
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            if (tabName === 'lessons') {
+                document.getElementById('lessonsTab').classList.remove('hidden');
+                document.getElementById('adminTab').classList.add('hidden');
+                event.target.classList.add('active');
+                renderLessons();
+            } else {
+                document.getElementById('lessonsTab').classList.add('hidden');
+                document.getElementById('adminTab').classList.remove('hidden');
+                event.target.classList.add('active');
+            }
+        }
 
-refresh();
-</script>
+        function renderLessons() {
+            const container = document.getElementById('lessonsList');
+            container.innerHTML = '';
+            
+            if (lessons.length === 0) {
+                container.innerHTML = '<p style="text-align:center; opacity:0.6;">Уроков пока нет.</p>';
+                return;
+            }
+
+            lessons.forEach((lesson, index) => {
+                container.innerHTML += `
+                    <div class="lesson-card">
+                        <h4>${index + 1}. ${lesson.title}</h4>
+                        <p>${lesson.desc}</p>
+                        <div class="video-container">
+                            <iframe src="${lesson.url}" allowfullscreen></iframe>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function addNewLesson() {
+            const title = document.getElementById('lessonTitle').value.trim();
+            const desc = document.getElementById('lessonDesc').value.trim();
+            let url = document.getElementById('lessonUrl').value.trim();
+
+            if (!title || !url) {
+                alert('Заполните название и ссылку на видео!');
+                return;
+            }
+
+            // Автоматическое преобразование обычной ссылки YouTube в Embed-формат, если нужно
+            if (url.includes('watch?v=')) {
+                url = url.replace('watch?v=', 'embed/');
+            }
+
+            lessons.push({ title, desc, url });
+            localStorage.setItem('makeup_lessons', JSON.stringify(lessons));
+
+            // Очищаем форму и переходим на вкладку уроков
+            document.getElementById('lessonTitle').value = '';
+            document.getElementById('lessonDesc').value = '';
+            document.getElementById('lessonUrl').value = '';
+            
+            alert('Урок успешно добавлен!');
+            switchTab('lessons');
+        }
+
+        // Первичный вывод уроков
+        renderLessons();
+    </script>
 </body>
 </html>
